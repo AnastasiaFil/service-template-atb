@@ -21,7 +21,7 @@ public class PostgresUserService {
 
     @Transactional(readOnly = true)
     public List<PostgresUserDTO> getAllPostgresUsers() {
-        List<PostgresUserDTO> postgresUsers = postgresUserRepository.findAll().stream()
+        List<PostgresUserDTO> postgresUsers = postgresUserRepository.findAllByOrderByIdAsc().stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
         log.info("Retrieved {} postgresUsers", postgresUsers.size());
