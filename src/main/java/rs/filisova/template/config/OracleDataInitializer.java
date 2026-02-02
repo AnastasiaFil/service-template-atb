@@ -31,7 +31,11 @@ public class OracleDataInitializer {
             ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
             populator.addScript(new ClassPathResource("oracle-init.sql"));
             populator.setContinueOnError(false);
-            populator.setSeparator(";");
+            // Use / as separator for Oracle PL/SQL blocks and statements
+            populator.setSeparator("/");
+            populator.setBlockCommentStartDelimiter("/*");
+            populator.setBlockCommentEndDelimiter("*/");
+            populator.setCommentPrefixes("--");
             
             populator.execute(oracleDataSource);
             
