@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import rs.filisova.template.dto.OracleUserDTO;
 import rs.filisova.template.entity.OracleUserEntity;
 import rs.filisova.template.entity.OracleUserGrantEntity;
 import rs.filisova.template.entity.OracleUserRoleEntity;
@@ -38,14 +39,14 @@ public class OracleUserController {
 
     @GetMapping("users")
     @Operation(summary = "Получение всех пользователей из БД Oracle")
-    public List<OracleUserEntity> getAllUsers() {
+    public List<OracleUserDTO> getAllUsers() {
         log.info("Get all Oracle users");
         return oracleUserService.getAllUsers();
     }
 
     @GetMapping("users/{id}")
     @Operation(summary = "Получение пользователя по ID")
-    public OracleUserEntity getUserById(@PathVariable Long id) {
+    public OracleUserDTO getUserById(@PathVariable Long id) {
         log.info("Get Oracle user by ID: {}", id);
         return oracleUserService.getUserById(id);
     }
@@ -53,16 +54,16 @@ public class OracleUserController {
     @PostMapping("users")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Создание нового пользователя")
-    public void createUser(@RequestBody OracleUserEntity user) {
+    public void createUser(@RequestBody OracleUserDTO user) {
         log.info("Create Oracle user: {}", user);
-        oracleUserService.createUser(user.getName(), user.getBirthDateOra(), user.getSex());
+        oracleUserService.createUser(user);
     }
 
     @PutMapping("users/{id}")
     @Operation(summary = "Обновление данных пользователя")
-    public void updateUser(@PathVariable Long id, @RequestBody OracleUserEntity user) {
+    public void updateUser(@PathVariable Long id, @RequestBody OracleUserDTO user) {
         log.info("Update Oracle user ID {}: {}", id, user);
-        oracleUserService.updateUser(id, user.getName(), user.getBirthDateOra(), user.getSex());
+        oracleUserService.updateUser(id, user);
     }
 
     @DeleteMapping("users/{id}")
