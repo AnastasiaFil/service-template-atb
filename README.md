@@ -13,8 +13,9 @@ make run
 ```
 
 Эта команда автоматически:
+
 - Проверит Docker и запустит его при необходимости
-- Поднимет контейнеры PostgreSQL и Oracle
+- Поднимет контейнеры PostgreSQL, Oracle, Kafka, Kafka Connect и ksqlDB
 - Соберет приложение
 - Запустит Spring Boot приложение
 - Откроет Swagger UI в браузере
@@ -24,6 +25,7 @@ make run
 ### Остановка приложения
 
 Для остановки всех контейнеров:
+
 ```bash
 make stop
 ```
@@ -47,6 +49,7 @@ make stop
 ## Oracle API Endpoints
 
 ### Users
+
 - `GET /api/oracle-users` - Get all users
 - `GET /api/oracle-users/{id}` - Get user by ID
 - `POST /api/oracle-users` - Create new user (via SQL INSERT)
@@ -54,6 +57,7 @@ make stop
 - `DELETE /api/oracle-users/{id}` - Delete user
 
 ### Grants
+
 - `GET /api/oracle-users/grants` - Get all grants
 - `GET /api/oracle-users/grants/{id}` - Get grant by ID
 - `POST /api/oracle-users/grants` - Create new grant (via SQL INSERT)
@@ -61,6 +65,7 @@ make stop
 - `DELETE /api/oracle-users/grants/{id}` - Delete grant
 
 ### Roles
+
 - `GET /api/oracle-users/roles` - Get all roles
 - `GET /api/oracle-users/roles/{id}` - Get role by ID
 - `POST /api/oracle-users/roles` - Create new role (via SQL INSERT)
@@ -74,21 +79,22 @@ make stop
 ### Что можно протестировать:
 
 1. **PostgreSQL Users API** (`/api/postgres-users`)
-   - Создание, чтение, обновление, удаление пользователей PostgreSQL
+    - Создание, чтение, обновление, удаление пользователей PostgreSQL
 
 2. **Oracle Users API** (`/api/oracle-users`)
-   - Получение списка пользователей Oracle
-   - Создание, обновление, удаление пользователей через SQL
+    - Получение списка пользователей Oracle
+    - Создание, обновление, удаление пользователей через SQL
 
 3. **Oracle Grants API** (`/api/oracle-users/grants`)
-   - Управление правами доступа Oracle пользователей
+    - Управление правами доступа Oracle пользователей
 
 4. **Oracle Roles API** (`/api/oracle-users/roles`)
-   - Управление ролями Oracle пользователей
+    - Управление ролями Oracle пользователей
 
 ### Автоматическая инициализация данных
 
 При запуске приложения Oracle база данных автоматически инициализируется тестовыми данными:
+
 - 5 тестовых пользователей с разными датами и полом
 - 5 грантов с различными правами доступа
 - 5 ролей от базового пользователя до администратора
@@ -102,7 +108,7 @@ make stop
 ### Основные команды
 
 ```bash
-make run            # Запустить приложение с PostgreSQL + Oracle и открыть Swagger
+make run            # Запустить приложение с PostgreSQL + Oracle + Kafka + Kafka Connect и открыть Swagger
 make stop           # Остановить все контейнеры
 make help           # Показать все доступные команды
 ```
@@ -110,11 +116,11 @@ make help           # Показать все доступные команды
 ### Команды для разработки
 
 ```bash
-make setup-oracle   # Запустить только БД (PostgreSQL + Oracle)
+make setup-oracle   # Запустить только инфраструктуру (PostgreSQL + Oracle + Kafka + Kafka Connect)
 make build          # Собрать проект
 make test           # Запустить тесты
 make test-coverage  # Запустить тесты с отчетом о покрытии
-make run-local      # Запустить только Spring Boot (БД должна быть уже запущена)
+make run-local      # Запустить только Spring Boot (инфраструктура должна быть уже запущена)
 make clean          # Очистить артефакты сборки
 make swagger        # Открыть Swagger UI в браузере
 ```
@@ -127,21 +133,32 @@ make docker-down    # Остановить все контейнеры
 make logs           # Показать логи контейнеров
 ```
 
+### Kafka Connect команды
+
+```bash
+make kafka-connect-status   # Проверить статус Kafka Connect и всех коннекторов
+make kafka-connect-pause    # Приостановить работу всех коннекторов
+make kafka-connect-resume   # Возобновить работу всех коннекторов
+make kafka-connect-restart  # Перезапустить Kafka Connect контейнер
+```
+
 ## Ручной запуск (без Makefile)
 
 Если вы хотите запустить приложение вручную:
 
-### Шаг 1: Запустите базы данных
+### Шаг 1: Запустите всю инфраструктуру
 
 ```bash
-COMPOSE_PROFILES=dev-oracle docker compose up -d postgres oracle
+COMPOSE_PROFILES=dev-oracle docker compose up -d postgres oracle zookeeper kafka kafka-connect ksqldb-server
 ```
 
-### Шаг 2: Дождитесь готовности Oracle (2-3 минуты)
+### Шаг 2: Дождитесь готовности всех сервисов (3-5 минут)
 
 ```bash
-docker-compose ps
+docker compose ps
 ```
+
+Все сервисы должны быть в статусе `healthy`.
 
 ### Шаг 3: Запустите приложение
 
@@ -161,11 +178,13 @@ http://localhost:8080/swagger-ui/index.html
 Database connection parameters can be configured via environment variables:
 
 ### PostgreSQL
+
 - `POSTGRES_DATASOURCE_URL` (default: `jdbc:postgresql://localhost:5432/mydatabase`)
 - `POSTGRES_DATASOURCE_USERNAME` (default: `myuser`)
 - `POSTGRES_DATASOURCE_PASSWORD` (default: `secret`)
 
 ### Oracle
+
 - `ORACLE_DATASOURCE_URL` (default: `jdbc:oracle:thin:@localhost:1521/FREEPDB1`)
 - `ORACLE_DATASOURCE_USERNAME` (default: `oracleuser`)
 - `ORACLE_DATASOURCE_PASSWORD` (default: `oraclepass`)
@@ -173,12 +192,15 @@ Database connection parameters can be configured via environment variables:
 ## Troubleshooting
 
 ### Oracle долго стартует
+
 Oracle контейнер может запускаться до 2-3 минут при первом запуске. Это нормально.
 
 ### Порт 8080 уже занят
+
 Остановите другие приложения на порту 8080 или измените порт в `application.yaml`.
 
 ### Docker не запускается автоматически
+
 Запустите Docker Desktop вручную и повторите команду `make run`.
 
 ---
@@ -186,7 +208,7 @@ Oracle контейнер может запускаться до 2-3 минут 
 ## Краткая шпаргалка
 
 ```bash
-# Запустить все и открыть Swagger
+# Запустить все (включая Kafka Connect) и открыть Swagger
 make run
 
 # Остановить все
@@ -197,15 +219,46 @@ make logs
 
 # Запустить тесты
 make test
+
+# Проверить статус Kafka Connect
+make kafka-connect-status
+
+# Приостановить Kafka Connect
+make kafka-connect-pause
+
+# Возобновить Kafka Connect
+make kafka-connect-resume
 ```
 
 **Swagger UI:** http://localhost:8080/swagger-ui/index.html
+**Kafka Connect REST API:** http://localhost:8083
 
 ---
 
 ## Kafka Connect - Синхронизация данных из Oracle в PostgreSQL
 
 Проект включает настроенный Kafka Connect для автоматической синхронизации данных из Oracle в PostgreSQL.
+
+> **📖 [KAFKA_CONNECT_GUIDE.md](KAFKA_CONNECT_GUIDE.md) - Подробное руководство по Kafka Connect**
+
+### Быстрое управление Kafka Connect
+
+После запуска `make run` все компоненты Kafka Connect будут автоматически запущены. Используйте следующие команды для
+управления:
+
+```bash
+# Проверить статус Kafka Connect и всех коннекторов
+make kafka-connect-status
+
+# Приостановить синхронизацию данных (остановить все коннекторы)
+make kafka-connect-pause
+
+# Возобновить синхронизацию данных (запустить все коннекторы)
+make kafka-connect-resume
+
+# Перезапустить Kafka Connect (если возникли проблемы)
+make kafka-connect-restart
+```
 
 ### Архитектура потока данных
 
@@ -223,13 +276,13 @@ JDBC Sink Connector → PostgreSQL (postgres_users)
 
 Данные из Oracle трансформируются следующим образом:
 
-| Oracle Source | PostgreSQL Target | Преобразование |
-|--------------|-------------------|----------------|
-| `oracle_users.name` | `postgres_users.name` | Прямое копирование |
-| `oracle_users.birth_date_ora` | `postgres_users.birth_date` | Переименование поля |
-| `oracle_users.sex` | `postgres_users.gender` | Переименование поля |
-| `oracle_users_role.name` | `postgres_users.role` | JOIN по `role_id` |
-| `oracle_users_grant.name` | `postgres_users.grant_field` | JOIN по `grant_id` |
+| Oracle Source                 | PostgreSQL Target            | Преобразование      |
+|-------------------------------|------------------------------|---------------------|
+| `oracle_users.name`           | `postgres_users.name`        | Прямое копирование  |
+| `oracle_users.birth_date_ora` | `postgres_users.birth_date`  | Переименование поля |
+| `oracle_users.sex`            | `postgres_users.gender`      | Переименование поля |
+| `oracle_users_role.name`      | `postgres_users.role`        | JOIN по `role_id`   |
+| `oracle_users_grant.name`     | `postgres_users.grant_field` | JOIN по `grant_id`  |
 
 ### Запуск Kafka Connect
 
@@ -240,6 +293,7 @@ docker compose --profile dev-oracle up -d
 ```
 
 Это запустит:
+
 - PostgreSQL
 - Oracle
 - Zookeeper
@@ -251,6 +305,7 @@ docker compose --profile dev-oracle up -d
 2. **Дождитесь готовности всех сервисов (3-5 минут)**
 
 Проверить статус можно командой:
+
 ```bash
 docker compose ps
 ```
@@ -264,6 +319,7 @@ docker exec -it service-template-atb-ksqldb-cli ksql http://ksqldb-server:8088
 ```
 
 В ksqlDB CLI выполните скрипт:
+
 ```bash
 RUN SCRIPT '/etc/kafka-connect/connectors/../ksql-setup.sql';
 ```
@@ -306,11 +362,13 @@ curl http://localhost:8083/connectors/postgres-sink-connector/status
 ### Мониторинг потока данных
 
 **Проверка топиков Kafka:**
+
 ```bash
 docker exec -it service-template-atb-kafka kafka-topics --bootstrap-server localhost:9092 --list
 ```
 
 **Чтение сообщений из топика:**
+
 ```bash
 # Топик с пользователями Oracle
 docker exec -it service-template-atb-kafka kafka-console-consumer \
@@ -326,6 +384,7 @@ docker exec -it service-template-atb-kafka kafka-console-consumer \
 ```
 
 **Проверка данных в PostgreSQL:**
+
 ```bash
 docker exec -it service-template-atb-postgres psql -U myuser -d mydatabase -c "SELECT * FROM postgres.postgres_users;"
 ```
@@ -333,6 +392,7 @@ docker exec -it service-template-atb-postgres psql -U myuser -d mydatabase -c "S
 ### Тестирование синхронизации
 
 1. **Добавьте нового пользователя в Oracle:**
+
 ```bash
 docker exec -it service-template-atb-oracle sqlplus oracleuser/oraclepass@//localhost:1521/FREEPDB1
 
@@ -342,6 +402,7 @@ COMMIT;
 ```
 
 2. **Проверьте, что данные появились в PostgreSQL:**
+
 ```bash
 docker exec -it service-template-atb-postgres psql -U myuser -d mydatabase \
   -c "SELECT * FROM postgres.postgres_users WHERE name = 'Test User';"
@@ -351,22 +412,44 @@ docker exec -it service-template-atb-postgres psql -U myuser -d mydatabase \
 
 ### Управление коннекторами
 
+**С помощью Makefile (рекомендуется):**
+
+```bash
+# Проверить статус всех коннекторов
+make kafka-connect-status
+
+# Приостановить работу всех коннекторов
+make kafka-connect-pause
+
+# Возобновить работу всех коннекторов
+make kafka-connect-resume
+
+# Перезапустить Kafka Connect
+make kafka-connect-restart
+```
+
+**Вручную через REST API:**
+
 **Остановить коннектор:**
+
 ```bash
 curl -X PUT http://localhost:8083/connectors/oracle-source-connector/pause
 ```
 
 **Запустить коннектор:**
+
 ```bash
 curl -X PUT http://localhost:8083/connectors/oracle-source-connector/resume
 ```
 
 **Удалить коннектор:**
+
 ```bash
 curl -X DELETE http://localhost:8083/connectors/oracle-source-connector
 ```
 
 **Обновить конфигурацию:**
+
 ```bash
 curl -X PUT http://localhost:8083/connectors/oracle-source-connector/config \
   -H "Content-Type: application/json" \
@@ -383,15 +466,18 @@ curl -X PUT http://localhost:8083/connectors/oracle-source-connector/config \
 ### Troubleshooting
 
 **Коннектор в статусе FAILED:**
+
 ```bash
 curl http://localhost:8083/connectors/oracle-source-connector/status | jq '.tasks[0].trace'
 ```
 
 **ksqlDB streams не создаются:**
+
 - Проверьте, что Oracle Source Connector успешно запущен и данные поступают в Kafka
 - Используйте `SHOW TOPICS;` в ksqlDB CLI для проверки доступных топиков
 
 **Данные не попадают в PostgreSQL:**
+
 - Убедитесь, что ksqlDB streams созданы и обрабатывают данные
 - Проверьте топик `postgres_users_enriched` на наличие сообщений
 - Проверьте логи PostgreSQL Sink Connector

@@ -1,4 +1,4 @@
-.PHONY: all help install-deps check-java install-java check-docker install-docker setup build test test-coverage run clean docker-up docker-down deploy logs
+.PHONY: all help install-deps check-java install-java check-docker install-docker setup build test test-coverage run clean docker-up docker-down deploy logs kafka-connect-status kafka-connect-pause kafka-connect-resume kafka-connect-restart
 
 # Цвета для вывода
 GREEN := \033[0;32m
@@ -36,6 +36,12 @@ help:
 	@echo "    make deploy         - Полный деплой с логом успеха"
 	@echo "    make logs           - Показать логи контейнеров"
 	@echo "    make swagger        - Открыть Swagger UI в браузере"
+	@echo ""
+	@echo "  $(YELLOW)Kafka Connect:$(NC)"
+	@echo "    make kafka-connect-status  - Проверить статус Kafka Connect и коннекторов"
+	@echo "    make kafka-connect-pause   - Приостановить работу всех коннекторов"
+	@echo "    make kafka-connect-resume  - Возобновить работу всех коннекторов"
+	@echo "    make kafka-connect-restart - Перезапустить Kafka Connect контейнер"
 
 ## all: Полный запуск (проверка зависимостей + установка + сборка + запуск)
 all: install-deps setup build run
@@ -174,10 +180,10 @@ setup:
 	done
 	@echo "$(GREEN)PostgreSQL готов!$(NC)"
 
-## setup-oracle: Запустить инфраструктуру (PostgreSQL + Oracle)
+## setup-oracle: Запустить инфраструктуру (PostgreSQL + Oracle + Kafka + Kafka Connect)
 setup-oracle:
-	@echo "$(GREEN)Запуск инфраструктуры (PostgreSQL + Oracle)...$(NC)"
-	@COMPOSE_PROFILES=dev-oracle docker compose up -d postgres oracle
+	@echo "$(GREEN)Запуск инфраструктуры (PostgreSQL + Oracle + Kafka + Kafka Connect)...$(NC)"
+	@COMPOSE_PROFILES=dev-oracle docker compose up -d postgres oracle zookeeper kafka kafka-connect ksqldb-server
 	@echo "$(YELLOW)Ожидание готовности PostgreSQL...$(NC)"
 	@until docker compose exec -T postgres pg_isready > /dev/null 2>&1; do \
 		sleep 2; \
@@ -197,6 +203,31 @@ setup-oracle:
 	@echo ""
 	@echo "$(YELLOW)Инициализация данных Oracle...$(NC)"
 	@sleep 5
+	@echo "$(GREEN)Oracle готов!$(NC)"
+	@echo "$(YELLOW)Ожидание готовности Kafka...$(NC)"
+	@timeout=60; \
+	while [ $$timeout -gt 0 ]; do \
+		if docker compose exec -T kafka kafka-broker-api-versions --bootstrap-server localhost:9092 >/dev/null 2>&1; then \
+			echo "$(GREEN)Kafka готов!$(NC)"; \
+			break; \
+		fi; \
+		printf "."; \
+		sleep 2; \
+		timeout=$$((timeout - 2)); \
+	done
+	@echo ""
+	@echo "$(YELLOW)Ожидание готовности Kafka Connect (это может занять до 2 минут)...$(NC)"
+	@timeout=120; \
+	while [ $$timeout -gt 0 ]; do \
+		if curl -s http://localhost:8083/ >/dev/null 2>&1; then \
+			echo "$(GREEN)Kafka Connect готов!$(NC)"; \
+			break; \
+		fi; \
+		printf "."; \
+		sleep 3; \
+		timeout=$$((timeout - 3)); \
+	done
+	@echo ""
 	@echo "$(GREEN)Инфраструктура готова!$(NC)"
 
 ## build: Собрать проект (без тестов)
@@ -305,3 +336,78 @@ swagger:
 		timeout=$$((timeout - 2)); \
 	done; \
 	echo "$(RED)Таймаут ожидания запуска приложения$(NC)"
+
+## kafka-connect-status: Проверить статус Kafka Connect и коннекторов
+kafka-connect-status:
+	@echo "$(GREEN)========================================$(NC)"
+	@echo "$(GREEN)Статус Kafka Connect$(NC)"
+	@echo "$(GREEN)========================================$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Проверка доступности Kafka Connect...$(NC)"
+	@if curl -s http://localhost:8083/ >/dev/null 2>&1; then \
+		echo "$(GREEN)✓ Kafka Connect работает$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)Список коннекторов:$(NC)"; \
+		curl -s http://localhost:8083/connectors | jq -r '.[]' 2>/dev/null || curl -s http://localhost:8083/connectors; \
+		echo ""; \
+		echo "$(YELLOW)Статус коннекторов:$(NC)"; \
+		for connector in $$(curl -s http://localhost:8083/connectors | jq -r '.[]' 2>/dev/null); do \
+			echo ""; \
+			echo "$(GREEN)Коннектор: $$connector$(NC)"; \
+			curl -s http://localhost:8083/connectors/$$connector/status | jq '.' 2>/dev/null || curl -s http://localhost:8083/connectors/$$connector/status; \
+		done; \
+	else \
+		echo "$(RED)✗ Kafka Connect недоступен на http://localhost:8083$(NC)"; \
+		echo "$(YELLOW)Запустите окружение командой: make run$(NC)"; \
+		exit 1; \
+	fi
+
+## kafka-connect-pause: Приостановить работу всех коннекторов
+kafka-connect-pause:
+	@echo "$(YELLOW)Приостановка всех коннекторов...$(NC)"
+	@if curl -s http://localhost:8083/ >/dev/null 2>&1; then \
+		for connector in $$(curl -s http://localhost:8083/connectors | jq -r '.[]' 2>/dev/null); do \
+			echo "Приостановка $$connector..."; \
+			curl -s -X PUT http://localhost:8083/connectors/$$connector/pause >/dev/null; \
+			echo "$(GREEN)✓ $$connector приостановлен$(NC)"; \
+		done; \
+		echo ""; \
+		echo "$(GREEN)Все коннекторы приостановлены!$(NC)"; \
+	else \
+		echo "$(RED)✗ Kafka Connect недоступен$(NC)"; \
+		exit 1; \
+	fi
+
+## kafka-connect-resume: Возобновить работу всех коннекторов
+kafka-connect-resume:
+	@echo "$(YELLOW)Возобновление работы всех коннекторов...$(NC)"
+	@if curl -s http://localhost:8083/ >/dev/null 2>&1; then \
+		for connector in $$(curl -s http://localhost:8083/connectors | jq -r '.[]' 2>/dev/null); do \
+			echo "Возобновление $$connector..."; \
+			curl -s -X PUT http://localhost:8083/connectors/$$connector/resume >/dev/null; \
+			echo "$(GREEN)✓ $$connector возобновлен$(NC)"; \
+		done; \
+		echo ""; \
+		echo "$(GREEN)Все коннекторы возобновлены!$(NC)"; \
+	else \
+		echo "$(RED)✗ Kafka Connect недоступен$(NC)"; \
+		exit 1; \
+	fi
+
+## kafka-connect-restart: Перезапустить Kafka Connect контейнер
+kafka-connect-restart:
+	@echo "$(YELLOW)Перезапуск Kafka Connect...$(NC)"
+	@docker compose restart kafka-connect
+	@echo "$(YELLOW)Ожидание готовности Kafka Connect...$(NC)"
+	@timeout=60; \
+	while [ $$timeout -gt 0 ]; do \
+		if curl -s http://localhost:8083/ >/dev/null 2>&1; then \
+			echo "$(GREEN)✓ Kafka Connect готов!$(NC)"; \
+			exit 0; \
+		fi; \
+		printf "."; \
+		sleep 2; \
+		timeout=$$((timeout - 2)); \
+	done; \
+	echo ""; \
+	echo "$(RED)Таймаут ожидания запуска Kafka Connect$(NC)"
