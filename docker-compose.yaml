@@ -155,7 +155,6 @@ services:
       - bash
       - -c
       - |
-        confluent-hub install --no-prompt debezium/debezium-connector-oracle:2.4.0
         confluent-hub install --no-prompt confluentinc/kafka-connect-jdbc:10.7.4
         /etc/confluent/docker/run
     healthcheck:
