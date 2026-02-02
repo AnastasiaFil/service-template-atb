@@ -5,13 +5,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rs.filisova.template.dto.OracleUserDTO;
+import rs.filisova.template.dto.OracleUserGrantDTO;
+import rs.filisova.template.dto.OracleUserRoleDTO;
 import rs.filisova.template.entity.OracleUserEntity;
-import rs.filisova.template.enums.OracleUserGrant;
-import rs.filisova.template.enums.OracleUserRole;
 import rs.filisova.template.repository.OracleUserRepository;
 
-import java.time.LocalDate;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -30,17 +28,19 @@ public class OracleUserService {
         dto.setSex(entity.getSex());
         
         if (entity.getRole() != null) {
-            dto.setRole(Arrays.stream(OracleUserRole.values())
-                    .filter(r -> r.getId().equals(entity.getRole().getId()))
-                    .findFirst()
-                    .orElse(null));
+            OracleUserRoleDTO roleDTO = new OracleUserRoleDTO();
+            roleDTO.setId(entity.getRole().getId());
+            roleDTO.setName(entity.getRole().getName());
+            roleDTO.setDescription(entity.getRole().getDescribe());
+            dto.setRole(roleDTO);
         }
         
         if (entity.getGrant() != null) {
-            dto.setGrant(Arrays.stream(OracleUserGrant.values())
-                    .filter(g -> g.getId().equals(entity.getGrant().getId()))
-                    .findFirst()
-                    .orElse(null));
+            OracleUserGrantDTO grantDTO = new OracleUserGrantDTO();
+            grantDTO.setId(entity.getGrant().getId());
+            grantDTO.setName(entity.getGrant().getName());
+            grantDTO.setDescription(entity.getGrant().getDescribe());
+            dto.setGrant(grantDTO);
         }
         
         return dto;

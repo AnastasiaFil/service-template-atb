@@ -2,8 +2,6 @@ package rs.filisova.template.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
-import rs.filisova.template.enums.OracleUserGrant;
-import rs.filisova.template.enums.OracleUserRole;
 
 import java.time.LocalDate;
 
@@ -24,8 +22,8 @@ public class OracleUserDTO {
     private String sex;
 
     @Schema(description = "Роль пользователя")
-    private OracleUserRole role;
+    private OracleUserRoleDTO role;
 
     @Schema(description = "Грант пользователя")
-    private OracleUserGrant grant;
+    private OracleUserGrantDTO grant;
 }
