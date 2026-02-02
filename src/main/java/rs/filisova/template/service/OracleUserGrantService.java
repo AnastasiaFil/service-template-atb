@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rs.filisova.template.entity.OracleUserGrantEntity;
+import rs.filisova.template.exception.OracleUserGrantNotFoundException;
 import rs.filisova.template.repository.OracleUserGrantRepository;
 
 import java.util.List;
@@ -24,7 +25,7 @@ public class OracleUserGrantService {
     public OracleUserGrantEntity getGrantById(Long id) {
         log.info("Getting Oracle user grant by ID: {}", id);
         return oracleUserGrantRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Oracle user grant not found with id: " + id));
+                .orElseThrow(() -> new OracleUserGrantNotFoundException(id));
     }
 
     @Transactional("oracleTransactionManager")

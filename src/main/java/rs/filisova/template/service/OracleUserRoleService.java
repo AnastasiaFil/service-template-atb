@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rs.filisova.template.entity.OracleUserRoleEntity;
+import rs.filisova.template.exception.OracleUserRoleNotFoundException;
 import rs.filisova.template.repository.OracleUserRoleRepository;
 
 import java.util.List;
@@ -24,7 +25,7 @@ public class OracleUserRoleService {
     public OracleUserRoleEntity getRoleById(Long id) {
         log.info("Getting Oracle user role by ID: {}", id);
         return oracleUserRoleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Oracle user role not found with id: " + id));
+                .orElseThrow(() -> new OracleUserRoleNotFoundException(id));
     }
 
     @Transactional("oracleTransactionManager")

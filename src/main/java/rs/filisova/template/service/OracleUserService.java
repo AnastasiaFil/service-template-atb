@@ -8,6 +8,7 @@ import rs.filisova.template.dto.OracleUserDTO;
 import rs.filisova.template.dto.OracleUserGrantDTO;
 import rs.filisova.template.dto.OracleUserRoleDTO;
 import rs.filisova.template.entity.OracleUserEntity;
+import rs.filisova.template.exception.OracleUserNotFoundException;
 import rs.filisova.template.repository.OracleUserRepository;
 
 import java.util.List;
@@ -56,7 +57,7 @@ public class OracleUserService {
     public OracleUserDTO getUserById(Long id) {
         log.info("Getting Oracle user by ID: {}", id);
         OracleUserEntity entity = oracleUserRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Oracle user not found with id: " + id));
+                .orElseThrow(() -> new OracleUserNotFoundException(id));
         return mapToDTO(entity);
     }
 
