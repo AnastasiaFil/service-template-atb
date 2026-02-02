@@ -1,0 +1,76 @@
+spring:
+  application:
+    name: service-template-atb
+  
+  # PostgreSQL datasource configuration
+  datasource:
+    postgres:
+      url: ${POSTGRES_DATASOURCE_URL:jdbc:postgresql://localhost:5432/mydatabase}
+      username: ${POSTGRES_DATASOURCE_USERNAME:myuser}
+      password: ${POSTGRES_DATASOURCE_PASSWORD:secret}
+      driver-class-name: org.postgresql.Driver
+    
+    # Oracle datasource configuration (read-only, managed via code)
+    oracle:
+      url: ${ORACLE_DATASOURCE_URL:jdbc:oracle:thin:@localhost:1521:ORCL}
+      username: ${ORACLE_DATASOURCE_USERNAME:oracleuser}
+      password: ${ORACLE_DATASOURCE_PASSWORD:oraclepass}
+      driver-class-name: oracle.jdbc.OracleDriver
+  
+  jpa:
+    show-sql: false
+    generate-ddl: false
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        # Default schema for PostgreSQL
+        default_schema: postgres
+  
+  # Liquibase ONLY for PostgreSQL
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    default-schema: postgres
+    liquibase-schema: public
+    database-change-log-table: postgres_log
+    database-change-log-lock-table: postgres_lock
+    parameters:
+      default-schema-prefix: postgres.
+    # Explicitly use PostgreSQL datasource for Liquibase
+    url: ${spring.datasource.postgres.url}
+    user: ${spring.datasource.postgres.username}
+    password: ${spring.datasource.postgres.password}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui
+    operationsSorter: method
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+
+logging:
+  level:
+    root: INFO
+    su.atb.platform: DEBUG
+  pattern:
+    console: '%black(%d{ISO8601}) %highlight(%-5level) [%blue(%t)] %yellow(%C{1}): %msg%n%throwable'
