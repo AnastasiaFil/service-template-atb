@@ -16,7 +16,7 @@ ORACLE_CONTAINER="service-template-atb-oracle"
 ORACLE_USER="oracleuser"
 ORACLE_PASSWORD="oraclepass"
 ORACLE_SYS_PASSWORD="OracleAdmin123"
-ORACLE_PDB="FREEPDB1"
+ORACLE_PDB="XEPDB1"
 
 echo "======================================================================"
 echo "  Oracle Database Configuration for Debezium CDC"

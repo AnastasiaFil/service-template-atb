@@ -5,7 +5,7 @@
 -- Run this script as SYSDBA user
 
 -- Connect as SYSDBA
-CONNECT sys/OracleAdmin123@//localhost:1521/FREEPDB1 AS SYSDBA;
+CONNECT sys/OracleAdmin123@//localhost:1521/XEPDB1 AS SYSDBA;
 
 -- ===================================================================
 -- Step 1: Enable Archive Log Mode and Supplemental Logging
@@ -60,7 +60,7 @@ GRANT SELECT ON V_$ARCHIVE_DEST_STATUS TO oracleuser;
 -- Step 3: Enable Supplemental Logging on Tables
 -- ===================================================================
 -- Connect as application user
-CONNECT oracleuser/oraclepass@//localhost:1521/FREEPDB1;
+CONNECT oracleuser/oraclepass@//localhost:1521/XEPDB1;
 
 -- Enable supplemental logging for each table
 ALTER TABLE ORACLE_USERS ADD SUPPLEMENTAL LOG DATA (ALL) COLUMNS;

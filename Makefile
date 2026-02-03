@@ -265,7 +265,7 @@ run: check-docker setup-oracle build
 	@echo ""
 	@(sleep 8 && $(MAKE) swagger) &
 	@(sleep 15 && echo "$(YELLOW)Настройка Oracle для Debezium CDC...$(NC)" && ./kafka-connect/setup-oracle-for-debezium.sh && echo "$(YELLOW)Регистрация Debezium коннекторов...$(NC)" && ./kafka-connect/register-debezium-connectors.sh && echo "$(GREEN)✓ Debezium коннекторы успешно зарегистрированы!$(NC)") &
-	@ORACLE_DATASOURCE_URL=jdbc:oracle:thin:@localhost:1521/FREEPDB1 \
+	@ORACLE_DATASOURCE_URL=jdbc:oracle:thin:@localhost:1521/XEPDB1 \
 	ORACLE_DATASOURCE_USERNAME=oracleuser \
 	ORACLE_DATASOURCE_PASSWORD=oraclepass \
 	./mvnw spring-boot:run
@@ -274,7 +274,7 @@ run: check-docker setup-oracle build
 run-local:
 	@echo "$(GREEN)Запуск приложения...$(NC)"
 	@echo "$(GREEN)Swagger UI будет доступен: http://localhost:8080/swagger-ui/index.html$(NC)"
-	@ORACLE_DATASOURCE_URL=jdbc:oracle:thin:@localhost:1521/FREEPDB1 \
+	@ORACLE_DATASOURCE_URL=jdbc:oracle:thin:@localhost:1521/XEPDB1 \
 	ORACLE_DATASOURCE_USERNAME=oracleuser \
 	ORACLE_DATASOURCE_PASSWORD=oraclepass \
 	./mvnw spring-boot:run

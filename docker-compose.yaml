@@ -20,7 +20,7 @@ services:
       - dev-oracle
 
   oracle:
-    image: 'gvenzl/oracle-xe:21-slim'
+    image: 'gvenzl/oracle-xe:latest-faststart'
     container_name: service-template-atb-oracle
     environment:
       - ORACLE_PASSWORD=OracleAdmin123
@@ -35,7 +35,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 120s
+      start_period: 60s
     profiles:
       - dev-oracle
 
@@ -160,7 +160,7 @@ services:
         
         echo "Installing Debezium Oracle Connector..."
         cd /tmp
-        DEBEZIUM_VERSION=2.1.4.Final
+        DEBEZIUM_VERSION=2.7.3.Final
         curl -sL https://repo1.maven.org/maven2/io/debezium/debezium-connector-oracle/$${DEBEZIUM_VERSION}/debezium-connector-oracle-$${DEBEZIUM_VERSION}-plugin.tar.gz | tar xz -C /usr/share/confluent-hub-components/
         
         echo "Downloading Oracle JDBC driver..."

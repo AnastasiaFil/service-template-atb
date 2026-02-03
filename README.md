@@ -242,7 +242,7 @@ docker compose ps
 ### Шаг 3: Запустите приложение
 
 ```bash
-export ORACLE_DATASOURCE_URL=jdbc:oracle:thin:@localhost:1521/FREEPDB1
+export ORACLE_DATASOURCE_URL=jdbc:oracle:thin:@localhost:1521/XEPDB1
 export ORACLE_DATASOURCE_USERNAME=oracleuser
 export ORACLE_DATASOURCE_PASSWORD=oraclepass
 ./mvnw spring-boot:run
@@ -264,7 +264,7 @@ Database connection parameters can be configured via environment variables:
 
 ### Oracle
 
-- `ORACLE_DATASOURCE_URL` (default: `jdbc:oracle:thin:@localhost:1521/FREEPDB1`)
+- `ORACLE_DATASOURCE_URL` (default: `jdbc:oracle:thin:@localhost:1521/XEPDB1`)
 - `ORACLE_DATASOURCE_USERNAME` (default: `oracleuser`)
 - `ORACLE_DATASOURCE_PASSWORD` (default: `oraclepass`)
 
@@ -327,21 +327,11 @@ docker compose --profile dev-oracle up -d
 curl http://localhost:8083/connectors/debezium-oracle-source-connector/status | jq
 
 # 5. Тестировать репликацию
-docker exec -it service-template-atb-oracle sqlplus oracleuser/oraclepass@//localhost:1521/FREEPDB1
+docker exec -it service-template-atb-oracle sqlplus oracleuser/oraclepass@//localhost:1521/XEPDB1
 # INSERT INTO oracle_users VALUES (100, 'Test CDC', SYSDATE, 'M', 1, 1); COMMIT;
 
 docker exec -it service-template-atb-postgres psql -U myuser -d mydatabase \
   -c "SELECT * FROM postgres.postgres_users_from_debezium WHERE id = 100;"
-```
-
-### JDBC Source Connector (простой вариант для dev/test)
-
-```bash
-# 1. Запустить инфраструктуру
-docker compose --profile dev-oracle up -d
-
-# 2. Зарегистрировать JDBC коннекторы
-./kafka-connect/register-connectors.sh
 ```
 
 **Swagger UI:** http://localhost:8080/swagger-ui/index.html
@@ -477,7 +467,7 @@ docker exec -it service-template-atb-postgres psql -U myuser -d mydatabase -c "S
 1. **Добавьте нового пользователя в Oracle:**
 
 ```bash
-docker exec -it service-template-atb-oracle sqlplus oracleuser/oraclepass@//localhost:1521/FREEPDB1
+docker exec -it service-template-atb-oracle sqlplus oracleuser/oraclepass@//localhost:1521/ORCLPDB1
 
 INSERT INTO oracle_users (name, birth_date_ora, sex, role_id, grant_id) 
 VALUES ('Test User', TO_DATE('2000-01-01', 'YYYY-MM-DD'), 'M', 1, 1);
