@@ -43,8 +43,87 @@ make stop
 - Automatic data initialization on startup
 - REST API for managing users, grants, and roles
 - Swagger UI для тестирования API
-- **Kafka Connect для синхронизации данных из Oracle в PostgreSQL**
-- **ksqlDB для обработки и обогащения потоков данных**
+- **Debezium CDC для репликации данных из Oracle в PostgreSQL в реальном времени**
+- **Kafka Connect и Kafka для надежной доставки данных**
+
+## 📚 Документация по Kafka Connect
+
+> **⚡ [KAFKA_CONNECT_OPTIONS.md](KAFKA_CONNECT_OPTIONS.md) - Сравнение вариантов репликации (JDBC vs Debezium CDC)**
+> 
+> **📖 [DEBEZIUM_CDC_GUIDE.md](DEBEZIUM_CDC_GUIDE.md) - Полное руководство по Debezium Oracle CDC**
+
+### Варианты репликации Oracle → PostgreSQL
+
+Проект поддерживает два варианта:
+
+**Вариант 1: Debezium Oracle CDC (РЕКОМЕНДУЕТСЯ) ⭐**
+- Читает Oracle redo logs через LogMiner
+- Репликация в реальном времени (<1 сек задержка)
+- Захватывает все операции: INSERT, UPDATE, DELETE
+- Требует настройки Oracle (ARCHIVELOG, supplemental logging)
+
+**Вариант 2: JDBC Source Connector (Простой)**
+- Опрашивает таблицы Oracle каждые N секунд
+- Проще в настройке, не требует изменений Oracle
+- Подходит для dev/test окружения
+- Может пропускать UPDATE/DELETE операции
+
+См. [KAFKA_CONNECT_OPTIONS.md](KAFKA_CONNECT_OPTIONS.md) для детального сравнения.
+
+### Архитектура Debezium CDC
+
+```
+┌─────────────────────┐
+│   Oracle Database   │ (source: redo logs)
+│  - ORACLE_USERS     │
+│  - ORACLE_USERS_    │
+│    ROLE             │
+│  - ORACLE_USERS_    │
+│    GRANT            │
+└──────────┬──────────┘
+           │ LogMiner читает redo logs
+           ▼
+┌─────────────────────┐
+│  Kafka Connect      │
+│  Debezium Oracle    │
+│  Source Connector   │
+└──────────┬──────────┘
+           │ Change events
+           ▼
+┌─────────────────────┐
+│   Apache Kafka      │
+│  Topics:            │
+│  - oracle_cdc...    │
+│    ORACLE_USERS     │
+│  - oracle_cdc...    │
+│    ORACLE_USERS_    │
+│    ROLE             │
+│  - oracle_cdc...    │
+│    ORACLE_USERS_    │
+│    GRANT            │
+└──────────┬──────────┘
+           │ Stream processing
+           ▼
+┌─────────────────────┐
+│  Kafka Connect      │
+│  JDBC Sink          │
+│  Connector          │
+└──────────┬──────────┘
+           │ Write to target
+           ▼
+┌─────────────────────┐
+│ PostgreSQL Database │ (target)
+│  - postgres_users_  │
+│    from_debezium    │
+└─────────────────────┘
+```
+
+**Ключевые особенности:**
+- 🔄 **Change Data Capture (CDC)** - Debezium читает redo logs Oracle через LogMiner
+- ⚡ **Реальное время** - задержка репликации <1 секунды
+- 📊 **Все операции** - захватывает INSERT, UPDATE, DELETE
+- 🔒 **Надежность** - гарантированная доставка через Kafka
+- 📈 **Масштабируемость** - легко добавить новые таблицы или sink connectors
 
 ## Oracle API Endpoints
 
@@ -207,6 +286,8 @@ Oracle контейнер может запускаться до 2-3 минут 
 
 ## Краткая шпаргалка
 
+### Основные команды
+
 ```bash
 # Запустить все (включая Kafka Connect) и открыть Swagger
 make run
@@ -228,6 +309,39 @@ make kafka-connect-pause
 
 # Возобновить Kafka Connect
 make kafka-connect-resume
+```
+
+### Debezium Oracle CDC (рекомендуется для production)
+
+```bash
+# 1. Запустить инфраструктуру
+docker compose --profile dev-oracle up -d
+
+# 2. Настроить Oracle для CDC
+./kafka-connect/setup-oracle-for-debezium.sh
+
+# 3. Зарегистрировать Debezium коннекторы
+./kafka-connect/register-debezium-connectors.sh
+
+# 4. Проверить статус
+curl http://localhost:8083/connectors/debezium-oracle-source-connector/status | jq
+
+# 5. Тестировать репликацию
+docker exec -it service-template-atb-oracle sqlplus oracleuser/oraclepass@//localhost:1521/FREEPDB1
+# INSERT INTO oracle_users VALUES (100, 'Test CDC', SYSDATE, 'M', 1, 1); COMMIT;
+
+docker exec -it service-template-atb-postgres psql -U myuser -d mydatabase \
+  -c "SELECT * FROM postgres.postgres_users_from_debezium WHERE id = 100;"
+```
+
+### JDBC Source Connector (простой вариант для dev/test)
+
+```bash
+# 1. Запустить инфраструктуру
+docker compose --profile dev-oracle up -d
+
+# 2. Зарегистрировать JDBC коннекторы
+./kafka-connect/register-connectors.sh
 ```
 
 **Swagger UI:** http://localhost:8080/swagger-ui/index.html

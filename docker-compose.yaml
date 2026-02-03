@@ -155,41 +155,17 @@ services:
       - bash
       - -c
       - |
+        echo "Installing Kafka Connect plugins..."
         confluent-hub install --no-prompt confluentinc/kafka-connect-jdbc:10.7.4
+        confluent-hub install --no-prompt debezium/debezium-connector-oracle:2.7.3
+        echo "Plugins installed successfully!"
         /etc/confluent/docker/run
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8083/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
-    profiles:
-      - dev-oracle
-
-  ksqldb-server:
-    image: confluentinc/ksqldb-server:0.29.0
-    container_name: service-template-atb-ksqldb-server
-    depends_on:
-      kafka:
-        condition: service_healthy
-    ports:
-      - "8088:8088"
-    environment:
-      KSQL_LISTENERS: http://0.0.0.0:8088
-      KSQL_BOOTSTRAP_SERVERS: kafka:29092
-      KSQL_KSQL_LOGGING_PROCESSING_STREAM_AUTO_CREATE: "true"
-      KSQL_KSQL_LOGGING_PROCESSING_TOPIC_AUTO_CREATE: "true"
-      KSQL_KSQL_SCHEMA_REGISTRY_URL: http://schema-registry:8081
-    profiles:
-      - dev-oracle
-
-  ksqldb-cli:
-    image: confluentinc/ksqldb-cli:0.29.0
-    container_name: service-template-atb-ksqldb-cli
-    depends_on:
-      - ksqldb-server
-    entrypoint: /bin/sh
-    tty: true
+      start_period: 120s
     profiles:
       - dev-oracle
 
