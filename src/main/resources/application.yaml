@@ -5,14 +5,14 @@ spring:
   # PostgreSQL datasource configuration
   datasource:
     postgres:
-      url: ${POSTGRES_DATASOURCE_URL:jdbc:postgresql://localhost:5432/mydatabase}
+      url: ${POSTGRES_DATASOURCE_URL:jdbc:postgresql://localhost:5433/mydatabase}
       username: ${POSTGRES_DATASOURCE_USERNAME:myuser}
       password: ${POSTGRES_DATASOURCE_PASSWORD:secret}
       driver-class-name: org.postgresql.Driver
     
     # Oracle datasource configuration (read-only, managed via code)
     oracle:
-      url: ${ORACLE_DATASOURCE_URL:jdbc:oracle:thin:@localhost:1521:ORCL}
+      url: ${ORACLE_DATASOURCE_URL:jdbc:oracle:thin:@localhost:1521/XEPDB1}
       username: ${ORACLE_DATASOURCE_USERNAME:oracleuser}
       password: ${ORACLE_DATASOURCE_PASSWORD:oraclepass}
       driver-class-name: oracle.jdbc.OracleDriver

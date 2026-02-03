@@ -258,7 +258,7 @@ Database connection parameters can be configured via environment variables:
 
 ### PostgreSQL
 
-- `POSTGRES_DATASOURCE_URL` (default: `jdbc:postgresql://localhost:5432/mydatabase`)
+- `POSTGRES_DATASOURCE_URL` (default: `jdbc:postgresql://localhost:5433/mydatabase`)
 - `POSTGRES_DATASOURCE_USERNAME` (default: `myuser`)
 - `POSTGRES_DATASOURCE_PASSWORD` (default: `secret`)
 
