@@ -15,6 +15,7 @@
     "schema.history.internal.kafka.bootstrap.servers": "kafka:29092",
     "schema.history.internal.kafka.topic": "schema-changes.oracle",
     "table.include.list": "ORACLEUSER.ORACLE_USERS,ORACLEUSER.ORACLE_USERS_ROLE,ORACLEUSER.ORACLE_USERS_GRANT",
+    "database.schema": "ORACLEUSER",
     "snapshot.mode": "schema_only",
     "log.mining.strategy": "online_catalog",
     "tombstones.on.delete": "false",
