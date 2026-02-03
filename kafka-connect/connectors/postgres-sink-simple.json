@@ -1,0 +1,26 @@
+{
+  "name": "postgres-sink-simple",
+  "config": {
+    "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+    "tasks.max": "1",
+    "topics": "oracle.ORACLE_USERS",
+    "connection.url": "jdbc:postgresql://postgres:5432/mydatabase",
+    "connection.user": "myuser",
+    "connection.password": "secret",
+    "auto.create": "false",
+    "auto.evolve": "false",
+    "insert.mode": "upsert",
+    "pk.mode": "record_key",
+    "pk.fields": "ID",
+    "table.name.format": "postgres_users_test",
+    "transforms": "flatten,extractId,extractName,extractRoleId,extractGrantId",
+    "transforms.flatten.type": "org.apache.kafka.connect.transforms.Flatten$Value",
+    "transforms.flatten.delimiter": "_",
+    "transforms.extractId.type": "org.apache.kafka.connect.transforms.ReplaceField$Value",
+    "transforms.extractId.include": "ID,NAME,SEX,BIRTH_DATE_ORA,ROLE_ID,GRANT_ID",
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": "true",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "true"
+  }
+}

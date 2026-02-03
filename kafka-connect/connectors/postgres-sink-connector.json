@@ -1,0 +1,22 @@
+{
+  "name": "postgres-sink-connector",
+  "config": {
+    "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+    "tasks.max": "1",
+    "topics": "postgres_users_enriched",
+    "connection.url": "jdbc:postgresql://postgres:5432/mydatabase",
+    "connection.user": "myuser",
+    "connection.password": "secret",
+    "auto.create": "false",
+    "auto.evolve": "false",
+    "insert.mode": "upsert",
+    "pk.mode": "record_value",
+    "pk.fields": "id",
+    "fields.whitelist": "id,name,birth_date,gender,role,grant_field",
+    "table.name.format": "postgres_users",
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": "false",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "false"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "oracle-source-connector",
+  "config": {
+    "connector.class": "io.confluent.connect.jdbc.JdbcSourceConnector",
+    "tasks.max": "1",
+    "connection.url": "jdbc:oracle:thin:@oracle:1521/FREEPDB1",
+    "connection.user": "oracleuser",
+    "connection.password": "oraclepass",
+    "mode": "incrementing",
+    "incrementing.column.name": "ID",
+    "topic.prefix": "oracle.",
+    "poll.interval.ms": "5000",
+    "table.whitelist": "ORACLEUSER.ORACLE_USERS,ORACLEUSER.ORACLE_USERS_ROLE,ORACLEUSER.ORACLE_USERS_GRANT",
+    "transforms": "castTypes",
+    "transforms.castTypes.type": "org.apache.kafka.connect.transforms.Cast$Value",
+    "transforms.castTypes.spec": "ID:int64,ROLE_ID:int64,GRANT_ID:int64",
+    "validate.non.null": "false",
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": "true",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "true"
+  }
+}
