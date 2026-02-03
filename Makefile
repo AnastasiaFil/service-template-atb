@@ -17,7 +17,7 @@ help:
 	@echo ""
 	@echo "  $(YELLOW)Основные:$(NC)"
 	@echo "    make all            - Полный запуск: проверка зависимостей + сборка + запуск"
-	@echo "    make run            - Запустить приложение с PostgreSQL + Oracle и открыть Swagger"
+	@echo "    make run            - Запустить приложение с PostgreSQL + Oracle + Kafka + автоматическая регистрация Debezium коннекторов"
 	@echo "    make install-deps   - Установить все необходимые зависимости (Java, Docker)"
 	@echo ""
 	@echo "  $(YELLOW)Разработка:$(NC)"
@@ -183,7 +183,7 @@ setup:
 ## setup-oracle: Запустить инфраструктуру (PostgreSQL + Oracle + Kafka + Kafka Connect)
 setup-oracle:
 	@echo "$(GREEN)Запуск инфраструктуры (PostgreSQL + Oracle + Kafka + Kafka Connect)...$(NC)"
-	@COMPOSE_PROFILES=dev-oracle docker compose up -d postgres oracle zookeeper kafka kafka-connect ksqldb-server
+	@COMPOSE_PROFILES=dev-oracle docker compose up -d postgres oracle zookeeper kafka kafka-connect
 	@echo "$(YELLOW)Ожидание готовности PostgreSQL...$(NC)"
 	@until docker compose exec -T postgres pg_isready > /dev/null 2>&1; do \
 		sleep 2; \
@@ -261,8 +261,10 @@ run: check-docker setup-oracle build
 	@echo "$(GREEN)========================================$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Swagger UI откроется автоматически через несколько секунд...$(NC)"
+	@echo "$(YELLOW)Debezium коннекторы будут зарегистрированы автоматически...$(NC)"
 	@echo ""
 	@(sleep 8 && $(MAKE) swagger) &
+	@(sleep 15 && echo "$(YELLOW)Настройка Oracle для Debezium CDC...$(NC)" && ./kafka-connect/setup-oracle-for-debezium.sh && echo "$(YELLOW)Регистрация Debezium коннекторов...$(NC)" && ./kafka-connect/register-debezium-connectors.sh && echo "$(GREEN)✓ Debezium коннекторы успешно зарегистрированы!$(NC)") &
 	@ORACLE_DATASOURCE_URL=jdbc:oracle:thin:@localhost:1521/FREEPDB1 \
 	ORACLE_DATASOURCE_USERNAME=oracleuser \
 	ORACLE_DATASOURCE_PASSWORD=oraclepass \

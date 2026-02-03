@@ -2,8 +2,6 @@
 
 Spring Boot application with dual database support (PostgreSQL and Oracle).
 
-> **📖 [QUICKSTART.md](QUICKSTART.md) - Пошаговая инструкция для быстрого старта**
-
 ## Быстрый старт
 
 ### Запуск приложения одной командой
@@ -15,7 +13,9 @@ make run
 Эта команда автоматически:
 
 - Проверит Docker и запустит его при необходимости
-- Поднимет контейнеры PostgreSQL, Oracle, Kafka, Kafka Connect и ksqlDB
+- Поднимет контейнеры PostgreSQL, Oracle, Kafka, Kafka Connect
+- Настроит Oracle для Debezium CDC
+- Зарегистрирует Debezium коннекторы
 - Соберет приложение
 - Запустит Spring Boot приложение
 - Откроет Swagger UI в браузере
@@ -228,7 +228,7 @@ make kafka-connect-restart  # Перезапустить Kafka Connect конт�
 ### Шаг 1: Запустите всю инфраструктуру
 
 ```bash
-COMPOSE_PROFILES=dev-oracle docker compose up -d postgres oracle zookeeper kafka kafka-connect ksqldb-server
+COMPOSE_PROFILES=dev-oracle docker compose up -d postgres oracle zookeeper kafka kafka-connect
 ```
 
 ### Шаг 2: Дождитесь готовности всех сервисов (3-5 минут)
@@ -381,9 +381,7 @@ Oracle DB (oracle_users, oracle_users_role, oracle_users_grant)
     ↓
 Debezium Oracle Source Connector → Kafka Topics
     ↓
-ksqlDB Stream Processing (JOIN и обогащение данных)
-    ↓
-JDBC Sink Connector → PostgreSQL (postgres_users)
+JDBC Sink Connector → PostgreSQL (postgres_users_from_debezium)
 ```
 
 ### Маппинг полей
@@ -413,7 +411,6 @@ docker compose --profile dev-oracle up -d
 - Zookeeper
 - Kafka
 - Kafka Connect
-- ksqlDB Server
 - Application
 
 2. **Дождитесь готовности всех сервисов (3-5 минут)**
@@ -426,38 +423,16 @@ docker compose ps
 
 Все сервисы должны быть в статусе `healthy`.
 
-3. **Настройте ksqlDB streams для объединения данных:**
+3. **Настройте Oracle для Debezium CDC:**
 
 ```bash
-docker exec -it service-template-atb-ksqldb-cli ksql http://ksqldb-server:8088
+./kafka-connect/setup-oracle-for-debezium.sh
 ```
 
-В ksqlDB CLI выполните скрипт:
+4. **Зарегистрируйте Debezium коннекторы:**
 
 ```bash
-RUN SCRIPT '/etc/kafka-connect/connectors/../ksql-setup.sql';
-```
-
-Или скопируйте содержимое файла `kafka-connect/ksql-setup.sql` и выполните построчно.
-
-4. **Зарегистрируйте коннекторы:**
-
-```bash
-./kafka-connect/register-connectors.sh
-```
-
-Или вручную:
-
-```bash
-# Oracle Source Connector
-curl -X POST http://localhost:8083/connectors \
-  -H "Content-Type: application/json" \
-  -d @kafka-connect/connectors/oracle-source-connector.json
-
-# PostgreSQL Sink Connector (после создания ksqlDB streams)
-curl -X POST http://localhost:8083/connectors \
-  -H "Content-Type: application/json" \
-  -d @kafka-connect/connectors/postgres-sink-connector.json
+./kafka-connect/register-debezium-connectors.sh
 ```
 
 5. **Проверьте статус коннекторов:**
@@ -466,11 +441,11 @@ curl -X POST http://localhost:8083/connectors \
 # Список всех коннекторов
 curl http://localhost:8083/connectors
 
-# Статус Oracle Source Connector
-curl http://localhost:8083/connectors/oracle-source-connector/status
+# Статус Debezium Oracle Source Connector
+curl http://localhost:8083/connectors/debezium-oracle-source-connector/status
 
 # Статус PostgreSQL Sink Connector
-curl http://localhost:8083/connectors/postgres-sink-connector/status
+curl http://localhost:8083/connectors/debezium-postgres-sink-connector/status
 ```
 
 ### Мониторинг потока данных
@@ -484,23 +459,17 @@ docker exec -it service-template-atb-kafka kafka-topics --bootstrap-server local
 **Чтение сообщений из топика:**
 
 ```bash
-# Топик с пользователями Oracle
+# Топик с пользователями Oracle (Debezium CDC)
 docker exec -it service-template-atb-kafka kafka-console-consumer \
   --bootstrap-server localhost:9092 \
-  --topic oracle.ORACLEUSER.ORACLE_USERS \
-  --from-beginning
-
-# Обогащенный топик для PostgreSQL
-docker exec -it service-template-atb-kafka kafka-console-consumer \
-  --bootstrap-server localhost:9092 \
-  --topic postgres_users_enriched \
+  --topic oracle_cdc.oracle_cdc.ORACLEUSER.ORACLE_USERS \
   --from-beginning
 ```
 
 **Проверка данных в PostgreSQL:**
 
 ```bash
-docker exec -it service-template-atb-postgres psql -U myuser -d mydatabase -c "SELECT * FROM postgres.postgres_users;"
+docker exec -it service-template-atb-postgres psql -U myuser -d mydatabase -c "SELECT * FROM postgres.postgres_users_from_debezium;"
 ```
 
 ### Тестирование синхронизации
@@ -519,7 +488,7 @@ COMMIT;
 
 ```bash
 docker exec -it service-template-atb-postgres psql -U myuser -d mydatabase \
-  -c "SELECT * FROM postgres.postgres_users WHERE name = 'Test User';"
+  -c "SELECT * FROM postgres.postgres_users_from_debezium WHERE id = 100;"
 ```
 
 Данные должны синхронизироваться автоматически в течение нескольких секунд.
@@ -547,51 +516,46 @@ make kafka-connect-restart
 **Остановить коннектор:**
 
 ```bash
-curl -X PUT http://localhost:8083/connectors/oracle-source-connector/pause
+curl -X PUT http://localhost:8083/connectors/debezium-oracle-source-connector/pause
 ```
 
 **Запустить коннектор:**
 
 ```bash
-curl -X PUT http://localhost:8083/connectors/oracle-source-connector/resume
+curl -X PUT http://localhost:8083/connectors/debezium-oracle-source-connector/resume
 ```
 
 **Удалить коннектор:**
 
 ```bash
-curl -X DELETE http://localhost:8083/connectors/oracle-source-connector
+curl -X DELETE http://localhost:8083/connectors/debezium-oracle-source-connector
 ```
 
 **Обновить конфигурацию:**
 
 ```bash
-curl -X PUT http://localhost:8083/connectors/oracle-source-connector/config \
+curl -X PUT http://localhost:8083/connectors/debezium-oracle-source-connector/config \
   -H "Content-Type: application/json" \
-  -d @kafka-connect/connectors/oracle-source-connector.json
+  -d @kafka-connect/connectors/debezium-oracle-source-connector.json
 ```
 
 ### Полезные ссылки
 
 - **Kafka Connect REST API:** http://localhost:8083
-- **ksqlDB Server:** http://localhost:8088
 - **Конфигурация коннекторов:** `kafka-connect/connectors/`
-- **ksqlDB скрипты:** `kafka-connect/ksql-setup.sql`
+- **Скрипты настройки:** `kafka-connect/setup-oracle-for-debezium.sh`, `kafka-connect/register-debezium-connectors.sh`
 
 ### Troubleshooting
 
 **Коннектор в статусе FAILED:**
 
 ```bash
-curl http://localhost:8083/connectors/oracle-source-connector/status | jq '.tasks[0].trace'
+curl http://localhost:8083/connectors/debezium-oracle-source-connector/status | jq '.tasks[0].trace'
 ```
-
-**ksqlDB streams не создаются:**
-
-- Проверьте, что Oracle Source Connector успешно запущен и данные поступают в Kafka
-- Используйте `SHOW TOPICS;` в ksqlDB CLI для проверки доступных топиков
 
 **Данные не попадают в PostgreSQL:**
 
-- Убедитесь, что ksqlDB streams созданы и обрабатывают данные
-- Проверьте топик `postgres_users_enriched` на наличие сообщений
+- Убедитесь, что Oracle настроен для CDC (ARCHIVELOG, supplemental logging)
+- Проверьте топик `oracle_cdc.oracle_cdc.ORACLEUSER.ORACLE_USERS` на наличие сообщений
 - Проверьте логи PostgreSQL Sink Connector
+- Используйте `make kafka-connect-status` для проверки статуса коннекторов
