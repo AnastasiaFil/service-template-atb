@@ -11,7 +11,7 @@
     "auto.evolve": "true",
     "insert.mode": "insert",
     "pk.mode": "none",
-    "table.name.format": "postgres.postgres_users_from_debezium",
+    "table.name.format": "postgres.postgres_users",
     "key.converter": "org.apache.kafka.connect.json.JsonConverter",
     "key.converter.schemas.enable": "true",
     "value.converter": "org.apache.kafka.connect.json.JsonConverter",
