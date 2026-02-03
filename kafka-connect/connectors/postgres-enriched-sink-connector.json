@@ -1,0 +1,24 @@
+{
+  "name": "postgres-enriched-sink-connector",
+  "config": {
+    "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+    "tasks.max": "1",
+    "topics": "postgres_users_enriched",
+    "connection.url": "jdbc:postgresql://postgres:5432/mydatabase",
+    "connection.user": "myuser",
+    "connection.password": "secret",
+    "auto.create": "false",
+    "auto.evolve": "false",
+    "insert.mode": "insert",
+    "pk.mode": "none",
+    "table.name.format": "postgres.postgres_users",
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": "false",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "false",
+    "transforms": "convertEpochToDate",
+    "transforms.convertEpochToDate.type": "org.apache.kafka.connect.transforms.TimestampConverter$Value",
+    "transforms.convertEpochToDate.field": "birth_date",
+    "transforms.convertEpochToDate.target.type": "Date"
+  }
+}

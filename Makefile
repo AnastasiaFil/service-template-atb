@@ -1,4 +1,4 @@
-.PHONY: all help install-deps check-java install-java check-docker install-docker setup build test test-coverage run clean docker-up docker-down deploy logs kafka-connect-status kafka-connect-pause kafka-connect-resume kafka-connect-restart
+.PHONY: all help install-deps check-java install-java check-docker install-docker setup build test test-coverage run clean docker-up docker-down deploy logs kafka-connect-status kafka-connect-pause kafka-connect-resume kafka-connect-restart setup-ksqldb ksqldb-status ksqldb-cli run-ksqldb
 
 # Цвета для вывода
 GREEN := \033[0;32m
@@ -42,6 +42,12 @@ help:
 	@echo "    make kafka-connect-pause   - Приостановить работу всех коннекторов"
 	@echo "    make kafka-connect-resume  - Возобновить работу всех коннекторов"
 	@echo "    make kafka-connect-restart - Перезапустить Kafka Connect контейнер"
+	@echo ""
+	@echo "  $(YELLOW)ksqlDB (Data Enrichment):$(NC)"
+	@echo "    make run-ksqldb            - Полный запуск с ksqlDB (рекомендуется для маппинга полей)"
+	@echo "    make setup-ksqldb          - Настроить ksqlDB streams и sink connector"
+	@echo "    make ksqldb-status         - Проверить статус ksqlDB streams и queries"
+	@echo "    make ksqldb-cli            - Открыть интерактивный ksqlDB CLI"
 
 ## all: Полный запуск (проверка зависимостей + установка + сборка + запуск)
 all: install-deps setup build run
@@ -180,10 +186,10 @@ setup:
 	done
 	@echo "$(GREEN)PostgreSQL готов!$(NC)"
 
-## setup-oracle: Запустить инфраструктуру (PostgreSQL + Oracle + Kafka + Kafka Connect)
+## setup-oracle: Запустить инфраструктуру (PostgreSQL + Oracle + Kafka + Kafka Connect + ksqlDB)
 setup-oracle:
-	@echo "$(GREEN)Запуск инфраструктуры (PostgreSQL + Oracle + Kafka + Kafka Connect)...$(NC)"
-	@COMPOSE_PROFILES=dev-oracle docker compose up -d postgres oracle zookeeper kafka kafka-connect
+	@echo "$(GREEN)Запуск инфраструктуры (PostgreSQL + Oracle + Kafka + Kafka Connect + ksqlDB)...$(NC)"
+	@COMPOSE_PROFILES=dev-oracle docker compose up -d postgres oracle zookeeper kafka schema-registry kafka-connect ksqldb-server
 	@echo "$(YELLOW)Ожидание готовности PostgreSQL...$(NC)"
 	@until docker compose exec -T postgres pg_isready > /dev/null 2>&1; do \
 		sleep 2; \
@@ -216,6 +222,18 @@ setup-oracle:
 		timeout=$$((timeout - 2)); \
 	done
 	@echo ""
+	@echo "$(YELLOW)Ожидание готовности Schema Registry...$(NC)"
+	@timeout=60; \
+	while [ $$timeout -gt 0 ]; do \
+		if curl -s http://localhost:8081/ >/dev/null 2>&1; then \
+			echo "$(GREEN)Schema Registry готов!$(NC)"; \
+			break; \
+		fi; \
+		printf "."; \
+		sleep 2; \
+		timeout=$$((timeout - 2)); \
+	done
+	@echo ""
 	@echo "$(YELLOW)Ожидание готовности Kafka Connect (это может занять до 2 минут)...$(NC)"
 	@timeout=120; \
 	while [ $$timeout -gt 0 ]; do \
@@ -226,6 +244,18 @@ setup-oracle:
 		printf "."; \
 		sleep 3; \
 		timeout=$$((timeout - 3)); \
+	done
+	@echo ""
+	@echo "$(YELLOW)Ожидание готовности ksqlDB Server...$(NC)"
+	@timeout=60; \
+	while [ $$timeout -gt 0 ]; do \
+		if curl -s http://localhost:8088/info >/dev/null 2>&1; then \
+			echo "$(GREEN)ksqlDB Server готов!$(NC)"; \
+			break; \
+		fi; \
+		printf "."; \
+		sleep 2; \
+		timeout=$$((timeout - 2)); \
 	done
 	@echo ""
 	@echo "$(GREEN)Инфраструктура готова!$(NC)"
@@ -413,3 +443,108 @@ kafka-connect-restart:
 	done; \
 	echo ""; \
 	echo "$(RED)Таймаут ожидания запуска Kafka Connect$(NC)"
+
+## run-ksqldb: Полный запуск приложения с ksqlDB для обогащения данных
+run-ksqldb: check-docker setup-oracle build
+	@echo "$(GREEN)========================================$(NC)"
+	@echo "$(GREEN)Запуск приложения с ksqlDB...$(NC)"
+	@echo "$(GREEN)========================================$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Swagger UI откроется автоматически через несколько секунд...$(NC)"
+	@echo "$(YELLOW)Debezium коннекторы и ksqlDB будут настроены автоматически...$(NC)"
+	@echo ""
+	@(sleep 8 && $(MAKE) swagger) &
+	@(sleep 15 && \
+		echo "$(YELLOW)Настройка Oracle для Debezium CDC...$(NC)" && \
+		./kafka-connect/setup-oracle-for-debezium.sh && \
+		echo "$(YELLOW)Регистрация Debezium source коннектора...$(NC)" && \
+		./kafka-connect/register-debezium-connectors.sh && \
+		echo "$(GREEN)✓ Debezium source коннектор зарегистрирован!$(NC)" && \
+		echo "" && \
+		echo "$(YELLOW)Ожидание данных в Kafka топиках (10 секунд)...$(NC)" && \
+		sleep 10 && \
+		echo "$(YELLOW)Настройка ksqlDB streams для обогащения данных...$(NC)" && \
+		./kafka-connect/setup-ksqldb-streams.sh && \
+		echo "$(GREEN)✓ ksqlDB streams созданы!$(NC)" && \
+		echo "" && \
+		echo "$(YELLOW)Регистрация PostgreSQL sink коннектора...$(NC)" && \
+		./kafka-connect/register-enriched-sink-connector.sh && \
+		echo "$(GREEN)✓ Все коннекторы успешно настроены!$(NC)" && \
+		echo "" && \
+		echo "$(GREEN)========================================$(NC)" && \
+		echo "$(GREEN)Данные из Oracle будут автоматически:$(NC)" && \
+		echo "$(GREEN)1. Читаться через Debezium$(NC)" && \
+		echo "$(GREEN)2. Обогащаться в ksqlDB (JOIN)$(NC)" && \
+		echo "$(GREEN)3. Записываться в PostgreSQL$(NC)" && \
+		echo "$(GREEN)========================================$(NC)") &
+	@ORACLE_DATASOURCE_URL=jdbc:oracle:thin:@localhost:1521/XEPDB1 \
+	ORACLE_DATASOURCE_USERNAME=oracleuser \
+	ORACLE_DATASOURCE_PASSWORD=oraclepass \
+	./mvnw spring-boot:run
+
+## setup-ksqldb: Настроить ksqlDB streams и sink connector
+setup-ksqldb:
+	@echo "$(GREEN)========================================$(NC)"
+	@echo "$(GREEN)Настройка ksqlDB для обогащения данных$(NC)"
+	@echo "$(GREEN)========================================$(NC)"
+	@echo ""
+	@if ! curl -s http://localhost:8088/info >/dev/null 2>&1; then \
+		echo "$(RED)✗ ksqlDB Server недоступен$(NC)"; \
+		echo "$(YELLOW)Запустите окружение командой: make setup-oracle$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)Шаг 1: Создание ksqlDB streams и tables...$(NC)"
+	@./kafka-connect/setup-ksqldb-streams.sh
+	@echo ""
+	@echo "$(YELLOW)Шаг 2: Регистрация PostgreSQL sink connector...$(NC)"
+	@./kafka-connect/register-enriched-sink-connector.sh
+	@echo ""
+	@echo "$(GREEN)========================================$(NC)"
+	@echo "$(GREEN)✓ ksqlDB настроен успешно!$(NC)"
+	@echo "$(GREEN)========================================$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Проверьте данные:$(NC)"
+	@echo "  docker exec -it service-template-atb-postgres psql -U myuser -d mydatabase -c 'SELECT * FROM postgres.postgres_users;'"
+
+## ksqldb-status: Проверить статус ksqlDB streams и queries
+ksqldb-status:
+	@echo "$(GREEN)========================================$(NC)"
+	@echo "$(GREEN)Статус ksqlDB$(NC)"
+	@echo "$(GREEN)========================================$(NC)"
+	@echo ""
+	@if ! curl -s http://localhost:8088/info >/dev/null 2>&1; then \
+		echo "$(RED)✗ ksqlDB Server недоступен на http://localhost:8088$(NC)"; \
+		echo "$(YELLOW)Запустите окружение командой: make setup-oracle$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)✓ ksqlDB Server работает$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Список streams:$(NC)"
+	@curl -s -X POST http://localhost:8088/ksql \
+		-H "Content-Type: application/vnd.ksql.v1+json" \
+		-d '{"ksql": "SHOW STREAMS;"}' | jq '.' 2>/dev/null || echo "$(RED)Ошибка получения списка streams$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Список tables:$(NC)"
+	@curl -s -X POST http://localhost:8088/ksql \
+		-H "Content-Type: application/vnd.ksql.v1+json" \
+		-d '{"ksql": "SHOW TABLES;"}' | jq '.' 2>/dev/null || echo "$(RED)Ошибка получения списка tables$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Список queries:$(NC)"
+	@curl -s -X POST http://localhost:8088/ksql \
+		-H "Content-Type: application/vnd.ksql.v1+json" \
+		-d '{"ksql": "SHOW QUERIES;"}' | jq '.' 2>/dev/null || echo "$(RED)Ошибка получения списка queries$(NC)"
+
+## ksqldb-cli: Открыть интерактивный ksqlDB CLI
+ksqldb-cli:
+	@echo "$(GREEN)========================================$(NC)"
+	@echo "$(GREEN)Запуск ksqlDB CLI$(NC)"
+	@echo "$(GREEN)========================================$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Полезные команды:$(NC)"
+	@echo "  SHOW STREAMS;                           - Список streams"
+	@echo "  SHOW TABLES;                            - Список tables"
+	@echo "  SHOW QUERIES;                           - Список запущенных queries"
+	@echo "  SELECT * FROM postgres_users_enriched EMIT CHANGES; - Просмотр обогащенных данных"
+	@echo "  exit                                    - Выход из CLI"
+	@echo ""
+	@docker exec -it service-template-atb-ksqldb-cli ksql http://ksqldb-server:8088
