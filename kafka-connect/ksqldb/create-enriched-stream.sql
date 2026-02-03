@@ -1,0 +1,120 @@
+-- ksqlDB Script to JOIN Oracle tables data from Kafka topics
+-- This script creates streams and tables from Debezium CDC topics
+-- and performs JOIN to enrich oracle_users with role and grant names
+
+-- =====================================================================
+-- Step 1: Create STREAMs from Debezium CDC topics
+-- =====================================================================
+
+-- Stream for oracle_users (main table) - reading from 'after' field
+CREATE STREAM IF NOT EXISTS oracle_users_stream (
+  after STRUCT<
+    ID DOUBLE,
+    NAME VARCHAR,
+    BIRTH_DATE_ORA BIGINT,
+    SEX VARCHAR,
+    ROLE_ID DOUBLE,
+    GRANT_ID DOUBLE
+  >
+) WITH (
+  KAFKA_TOPIC='oracle_cdc.ORACLEUSER.ORACLE_USERS',
+  VALUE_FORMAT='JSON'
+);
+
+-- Stream for oracle_users_role - reading from 'after' field
+CREATE STREAM IF NOT EXISTS oracle_users_role_stream (
+  after STRUCT<
+    ID DOUBLE,
+    NAME VARCHAR,
+    `DESCRIBE` VARCHAR
+  >
+) WITH (
+  KAFKA_TOPIC='oracle_cdc.ORACLEUSER.ORACLE_USERS_ROLE',
+  VALUE_FORMAT='JSON'
+);
+
+-- Stream for oracle_users_grant - reading from 'after' field
+CREATE STREAM IF NOT EXISTS oracle_users_grant_stream (
+  after STRUCT<
+    ID DOUBLE,
+    NAME VARCHAR,
+    `DESCRIBE` VARCHAR
+  >
+) WITH (
+  KAFKA_TOPIC='oracle_cdc.ORACLEUSER.ORACLE_USERS_GRANT',
+  VALUE_FORMAT='JSON'
+);
+
+-- =====================================================================
+-- Step 2: Create TABLEs from streams (for JOIN operations)
+-- =====================================================================
+
+-- Flattened stream for roles to create table
+CREATE STREAM IF NOT EXISTS oracle_users_role_flat AS
+SELECT
+  after->ID AS ID,
+  after->NAME AS NAME,
+  after->`DESCRIBE` AS DESCRIBE_TEXT
+FROM oracle_users_role_stream
+EMIT CHANGES;
+
+-- Flattened stream for grants to create table
+CREATE STREAM IF NOT EXISTS oracle_users_grant_flat AS
+SELECT
+  after->ID AS ID,
+  after->NAME AS NAME,
+  after->`DESCRIBE` AS DESCRIBE_TEXT
+FROM oracle_users_grant_stream
+EMIT CHANGES;
+
+-- Table for roles (keyed by ID)
+CREATE TABLE IF NOT EXISTS oracle_users_role_table AS
+SELECT
+  ID,
+  LATEST_BY_OFFSET(NAME) AS NAME,
+  LATEST_BY_OFFSET(DESCRIBE_TEXT) AS DESCRIBE_TEXT
+FROM oracle_users_role_flat
+GROUP BY ID
+EMIT CHANGES;
+
+-- Table for grants (keyed by ID)
+CREATE TABLE IF NOT EXISTS oracle_users_grant_table AS
+SELECT
+  ID,
+  LATEST_BY_OFFSET(NAME) AS NAME,
+  LATEST_BY_OFFSET(DESCRIBE_TEXT) AS DESCRIBE_TEXT
+FROM oracle_users_grant_flat
+GROUP BY ID
+EMIT CHANGES;
+
+-- =====================================================================
+-- Step 3: Create enriched stream with JOINs
+-- =====================================================================
+
+-- Join oracle_users with role and grant tables to create enriched data
+CREATE STREAM IF NOT EXISTS postgres_users_enriched WITH (
+  KAFKA_TOPIC='postgres_users_enriched',
+  VALUE_FORMAT='JSON',
+  PARTITIONS=1
+) AS
+SELECT
+  u.after->NAME AS name,
+  u.after->BIRTH_DATE_ORA AS birth_date,
+  u.after->SEX AS gender,
+  r.NAME AS role,
+  g.NAME AS grant_field
+FROM oracle_users_stream u
+LEFT JOIN oracle_users_role_table r ON u.after->ROLE_ID = r.ID
+LEFT JOIN oracle_users_grant_table g ON u.after->GRANT_ID = g.ID
+EMIT CHANGES;
+
+-- =====================================================================
+-- Notes:
+-- =====================================================================
+-- 1. BIRTH_DATE_ORA from Oracle is in epoch milliseconds format
+--    It will be converted to DATE in PostgreSQL by the sink connector
+-- 2. The enriched stream 'postgres_users_enriched' will be consumed
+--    by JDBC Sink Connector to write to postgres.postgres_users table
+-- 3. The 'id' field in PostgreSQL is auto-generated (SERIAL) and not
+--    included in this stream
+-- 4. LEFT JOIN is used to handle cases where role_id or grant_id might be NULL
