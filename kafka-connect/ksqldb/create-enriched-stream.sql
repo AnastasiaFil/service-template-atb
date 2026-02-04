@@ -50,7 +50,8 @@ CREATE STREAM IF NOT EXISTS oracle_users_grant_stream (
 -- =====================================================================
 
 -- Flattened stream for roles to create table
-CREATE STREAM IF NOT EXISTS oracle_users_role_flat AS
+CREATE STREAM IF NOT EXISTS oracle_users_role_flat 
+WITH (KAFKA_TOPIC='oracle_users_role_flat', VALUE_FORMAT='JSON') AS
 SELECT
   after->ID AS ID,
   after->NAME AS NAME,
@@ -59,7 +60,8 @@ FROM oracle_users_role_stream
 EMIT CHANGES;
 
 -- Flattened stream for grants to create table
-CREATE STREAM IF NOT EXISTS oracle_users_grant_flat AS
+CREATE STREAM IF NOT EXISTS oracle_users_grant_flat 
+WITH (KAFKA_TOPIC='oracle_users_grant_flat', VALUE_FORMAT='JSON') AS
 SELECT
   after->ID AS ID,
   after->NAME AS NAME,
@@ -101,7 +103,11 @@ SELECT
   u.after->NAME AS name,
   u.after->BIRTH_DATE_ORA AS birth_date,
   u.after->SEX AS gender,
+  u.after->ROLE_ID AS role_id,
+  u.after->GRANT_ID AS grant_id,
+  r.ID AS r_id,
   r.NAME AS role,
+  g.ID AS g_id,
   g.NAME AS grant_field
 FROM oracle_users_stream u
 LEFT JOIN oracle_users_role_table r ON u.after->ROLE_ID = r.ID

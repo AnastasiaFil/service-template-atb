@@ -23,19 +23,35 @@ echo ""
 wait_for_ksqldb() {
     echo -e "${YELLOW}Waiting for ksqlDB server to be ready...${NC}"
     local retries=0
-    local max_retries=60
+    local max_retries=120
     
-    while ! curl -s "${KSQLDB_SERVER}/info" > /dev/null; do
+    while true; do
         retries=$((retries + 1))
         if [ $retries -ge $max_retries ]; then
             echo -e "${RED}Error: ksqlDB server did not become ready in time${NC}"
             exit 1
         fi
-        echo "Still waiting... (attempt $retries/$max_retries)"
-        sleep 5
+        
+        # Check if ksqlDB is responding
+        if ! curl -s "${KSQLDB_SERVER}/info" > /dev/null 2>&1; then
+            echo "Still waiting for ksqlDB to respond... (attempt $retries/$max_retries)"
+            sleep 5
+            continue
+        fi
+        
+        # Check if ksqlDB status is RUNNING
+        status=$(curl -s "${KSQLDB_SERVER}/info" | grep -o '"serverStatus":"[^"]*"' | cut -d'"' -f4)
+        if [ "$status" != "RUNNING" ]; then
+            echo "ksqlDB server status: $status (waiting for RUNNING) - attempt $retries/$max_retries"
+            sleep 5
+            continue
+        fi
+        
+        # ksqlDB is ready
+        break
     done
     
-    echo -e "${GREEN}✓ ksqlDB server is ready!${NC}"
+    echo -e "${GREEN}✓ ksqlDB server is ready and RUNNING!${NC}"
     echo ""
 }
 
@@ -44,9 +60,12 @@ execute_ksql() {
     local statement=$1
     echo -e "${YELLOW}Executing: ${statement:0:50}...${NC}"
     
+    # Escape quotes and newlines for JSON
+    local escaped_statement=$(echo "$statement" | sed 's/"/\\"/g' | tr '\n' ' ')
+    
     response=$(curl -s -X POST "${KSQLDB_SERVER}/ksql" \
       -H "Content-Type: application/vnd.ksql.v1+json" \
-      -d "{\"ksql\": \"${statement}\", \"streamsProperties\": {}}")
+      -d "{\"ksql\": \"${escaped_statement}\", \"streamsProperties\": {}}")
     
     if echo "$response" | grep -q "error"; then
         echo -e "${RED}✗ Error executing statement${NC}"
@@ -75,8 +94,7 @@ execute_ksql_script() {
         statement="${statement}${line} "
         
         if [[ "$line" =~ \;[[:space:]]*$ ]]; then
-            # Remove semicolon and whitespace
-            statement=$(echo "$statement" | sed 's/;[[:space:]]*$//')
+            # Keep the semicolon - ksqlDB requires it
             
             # Execute the accumulated statement
             if [[ ! -z "$statement" ]]; then
