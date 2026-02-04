@@ -7,17 +7,21 @@
     "connection.url": "jdbc:postgresql://postgres:5432/mydatabase",
     "connection.user": "myuser",
     "connection.password": "secret",
-    "auto.create": "true",
-    "auto.evolve": "true",
-    "insert.mode": "insert",
-    "pk.mode": "none",
+    "auto.create": "false",
+    "auto.evolve": "false",
+    "insert.mode": "upsert",
+    "pk.mode": "record_value",
+    "pk.fields": "ID",
+    "fields.whitelist": "ID,NAME,BIRTH_DATE_ORA,SEX,ROLE_ID,GRANT_ID",
     "table.name.format": "postgres.postgres_users",
     "key.converter": "org.apache.kafka.connect.json.JsonConverter",
     "key.converter.schemas.enable": "true",
     "value.converter": "org.apache.kafka.connect.json.JsonConverter",
     "value.converter.schemas.enable": "true",
-    "transforms": "unwrap",
+    "transforms": "unwrap,rename",
     "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
-    "transforms.unwrap.drop.tombstones": "false"
+    "transforms.unwrap.drop.tombstones": "false",
+    "transforms.rename.type": "org.apache.kafka.connect.transforms.ReplaceField$Value",
+    "transforms.rename.renames": "ID:id,NAME:name,BIRTH_DATE_ORA:birth_date,SEX:gender,ROLE_ID:role_id,GRANT_ID:grant_id"
   }
 }

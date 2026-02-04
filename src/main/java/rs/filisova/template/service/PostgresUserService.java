@@ -85,7 +85,10 @@ public class PostgresUserService {
 
     private PostgresUserEntity convertToEntity(PostgresUserDTO dto) {
         PostgresUserEntity entity = new PostgresUserEntity();
-        entity.setId(dto.getId());
+        // Don't set ID for new entities - let the database generate it
+        if (dto.getId() != null && dto.getId() > 0) {
+            entity.setId(dto.getId());
+        }
         entity.setName(dto.getName());
         entity.setBirthDate(dto.getBirthDate());
         entity.setGender(dto.getGender());

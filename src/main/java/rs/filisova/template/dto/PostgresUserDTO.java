@@ -19,7 +19,7 @@ public class PostgresUserDTO {
     @Schema(description = "Имя пользователя")
     private String name;
 
-    @Past
+    @Past(message = "Birth date must be in the past")
     @Schema(description = "Дата рождения")
     private LocalDate birthDate;
 
