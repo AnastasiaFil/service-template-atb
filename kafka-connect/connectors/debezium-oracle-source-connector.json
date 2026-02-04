@@ -17,7 +17,7 @@
     "schema.history.internal.store.only.captured.databases.ddl": "true",
     "schema.history.internal.skip.unparseable.ddl": "true",
     "table.include.list": "ORACLEUSER.ORACLE_USERS,ORACLEUSER.ORACLE_USERS_ROLE,ORACLEUSER.ORACLE_USERS_GRANT",
-    "snapshot.mode": "always",
+    "snapshot.mode": "schema_only",
     "log.mining.strategy": "online_catalog",
     "tombstones.on.delete": "false",
     "decimal.handling.mode": "double",

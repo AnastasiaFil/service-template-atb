@@ -1,4 +1,4 @@
-.PHONY: all help install-deps check-java install-java check-docker install-docker setup build test test-coverage run clean docker-up docker-down deploy logs kafka-connect-status kafka-connect-pause kafka-connect-resume kafka-connect-restart setup-ksqldb ksqldb-status ksqldb-cli run-ksqldb
+.PHONY: all help install-deps check-java install-java check-docker install-docker setup build test test-coverage run clean docker-up docker-down deploy logs kafka-connect-status kafka-connect-pause kafka-connect-resume kafka-connect-restart kafka-connect-delete kafka-connect-deploy setup-ksqldb ksqldb-status ksqldb-cli run-ksqldb
 
 # Цвета для вывода
 GREEN := \033[0;32m
@@ -42,6 +42,8 @@ help:
 	@echo "    make kafka-connect-pause   - Приостановить работу всех коннекторов"
 	@echo "    make kafka-connect-resume  - Возобновить работу всех коннекторов"
 	@echo "    make kafka-connect-restart - Перезапустить Kafka Connect контейнер"
+	@echo "    make kafka-connect-delete  - Удалить все коннекторы"
+	@echo "    make kafka-connect-deploy  - Удалить и заново развернуть все коннекторы"
 	@echo ""
 	@echo "  $(YELLOW)ksqlDB (Data Enrichment):$(NC)"
 	@echo "    make run-ksqldb            - Полный запуск с ksqlDB (рекомендуется для маппинга полей)"
@@ -443,6 +445,49 @@ kafka-connect-restart:
 	done; \
 	echo ""; \
 	echo "$(RED)Таймаут ожидания запуска Kafka Connect$(NC)"
+
+## kafka-connect-delete: Удалить все коннекторы
+kafka-connect-delete:
+	@echo "$(YELLOW)Удаление всех коннекторов...$(NC)"
+	@if curl -s http://localhost:8083/ >/dev/null 2>&1; then \
+		for connector in $$(curl -s http://localhost:8083/connectors | jq -r '.[]' 2>/dev/null); do \
+			echo "Удаление $$connector..."; \
+			curl -s -X DELETE http://localhost:8083/connectors/$$connector >/dev/null; \
+			echo "$(GREEN)✓ $$connector удален$(NC)"; \
+		done; \
+		echo ""; \
+		echo "$(GREEN)Все коннекторы удалены!$(NC)"; \
+	else \
+		echo "$(RED)✗ Kafka Connect недоступен$(NC)"; \
+		exit 1; \
+	fi
+
+## kafka-connect-deploy: Удалить и заново развернуть все коннекторы
+kafka-connect-deploy:
+	@echo "$(GREEN)========================================$(NC)"
+	@echo "$(GREEN)Переразвертывание Debezium коннекторов$(NC)"
+	@echo "$(GREEN)========================================$(NC)"
+	@echo ""
+	@if ! curl -s http://localhost:8083/ >/dev/null 2>&1; then \
+		echo "$(RED)✗ Kafka Connect недоступен$(NC)"; \
+		echo "$(YELLOW)Запустите окружение командой: make setup-oracle$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)Шаг 1: Удаление существующих коннекторов...$(NC)"
+	@$(MAKE) kafka-connect-delete 2>/dev/null || true
+	@echo ""
+	@echo "$(YELLOW)Шаг 2: Настройка Oracle для Debezium CDC...$(NC)"
+	@./kafka-connect/setup-oracle-for-debezium.sh
+	@echo ""
+	@echo "$(YELLOW)Шаг 3: Регистрация новых коннекторов...$(NC)"
+	@./kafka-connect/register-debezium-connectors.sh
+	@echo ""
+	@echo "$(GREEN)========================================$(NC)"
+	@echo "$(GREEN)✓ Коннекторы успешно переразвернуты!$(NC)"
+	@echo "$(GREEN)========================================$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Проверьте статус:$(NC)"
+	@echo "  make kafka-connect-status"
 
 ## run-ksqldb: Полный запуск приложения с ksqlDB для обогащения данных
 run-ksqldb: check-docker setup-oracle build
