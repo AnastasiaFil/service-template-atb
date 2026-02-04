@@ -19,7 +19,7 @@
     "table.include.list": "ORACLEUSER.ORACLE_USERS,ORACLEUSER.ORACLE_USERS_ROLE,ORACLEUSER.ORACLE_USERS_GRANT",
     "snapshot.mode": "schema_only",
     "log.mining.strategy": "online_catalog",
-    "tombstones.on.delete": "false",
+    "tombstones.on.delete": "true",
     "decimal.handling.mode": "double",
     "key.converter": "org.apache.kafka.connect.json.JsonConverter",
     "key.converter.schemas.enable": "true",

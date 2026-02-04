@@ -103,6 +103,7 @@ CREATE STREAM IF NOT EXISTS postgres_users_enriched WITH (
   PARTITIONS=1
 ) AS
 SELECT
+  u.payload->after->ID AS id,
   u.payload->after->NAME AS name,
   u.payload->after->BIRTH_DATE_ORA AS birth_date,
   u.payload->after->SEX AS gender,
@@ -123,7 +124,7 @@ EMIT CHANGES;
 --    It will be converted to DATE in PostgreSQL by the sink connector
 -- 2. The enriched stream 'postgres_users_enriched' will be consumed
 --    by JDBC Sink Connector to write to postgres.postgres_users table
--- 3. The 'id' field in PostgreSQL is auto-generated (SERIAL) and not
---    included in this stream
+-- 3. The 'id' field in PostgreSQL comes from Oracle (oracle_users.ID)
+--    and is included in this stream
 -- 4. LEFT JOIN is used to handle cases where role_id or grant_id might be NULL
 -- 5. WHERE payload->after IS NOT NULL filters out DELETE events
