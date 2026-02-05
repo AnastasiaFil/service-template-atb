@@ -15,7 +15,9 @@
 // */
 //@Slf4j
 //@Configuration
-//public class OracleDataInitializer {
+//public class OracleDataInitializer { // только для инициации иначе проблема с архивными логами Oracle!!!!!!
+//   - Debezium connector пытался читать старые архивные логи, которые были удалены !!!!!!
+//   - Ошибка: `ORA-01284: file arch1_44_1181008281.dbf cannot be opened !!!!!!
 //
 //    private final DataSource oracleDataSource;
 //
