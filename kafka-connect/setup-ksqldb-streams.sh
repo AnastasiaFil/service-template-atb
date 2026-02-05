@@ -19,6 +19,14 @@ echo "  ksqlDB Stream Setup for Oracle CDC Data Enrichment"
 echo "======================================================================"
 echo ""
 
+# Step 0: Create Kafka topics for reference tables
+echo "======================================================================"
+echo "  Step 0: Create Kafka Topics"
+echo "======================================================================"
+echo ""
+./kafka-connect/create-kafka-topics.sh
+echo ""
+
 # Function to wait for ksqlDB
 wait_for_ksqldb() {
     echo -e "${YELLOW}Waiting for ksqlDB server to be ready...${NC}"

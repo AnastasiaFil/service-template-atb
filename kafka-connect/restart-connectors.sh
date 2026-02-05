@@ -65,17 +65,20 @@ create_connector "connectors/debezium-oracle-source-connector.json"
 sleep 2
 check_status "debezium-oracle-source-connector"
 
-# Restart Postgres Sink Connector
-delete_connector "debezium-postgres-sink-connector"
+# Restart Enriched Postgres Sink Connector
+delete_connector "postgres-enriched-sink-connector"
 sleep 2
-create_connector "connectors/debezium-postgres-sink-connector.json"
+create_connector "connectors/postgres-enriched-sink-connector.json"
 sleep 2
-check_status "debezium-postgres-sink-connector"
+check_status "postgres-enriched-sink-connector"
 
 echo ""
 echo "==================================================="
 echo "✓ All connectors restarted successfully"
 echo "==================================================="
+echo ""
+echo "Note: Make sure ksqlDB streams are created before using enriched sink:"
+echo "  ./kafka-connect/setup-ksqldb-streams.sh"
 echo ""
 echo "To view all connectors:"
 echo "  curl ${KAFKA_CONNECT_URL}/connectors"

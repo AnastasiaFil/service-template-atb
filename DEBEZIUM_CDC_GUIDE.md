@@ -227,7 +227,9 @@ curl -X DELETE http://localhost:8083/connectors/debezium-oracle-source-connector
 
 ### Конфигурация PostgreSQL Sink Connector
 
-Файл: `kafka-connect/connectors/debezium-postgres-sink-connector.json`
+**DEPRECATED:** Используйте `postgres-enriched-sink-connector.json` для маппинга полей role и grant_field.
+
+Файл: `kafka-connect/connectors/debezium-postgres-sink-connector-NOT-USED.json`
 
 ```json
 {

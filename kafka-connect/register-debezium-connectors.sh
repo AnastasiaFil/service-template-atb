@@ -98,41 +98,27 @@ main() {
     wait_for_kafka_connect
     
     echo "======================================================================"
-    echo "  Step 1: Register Debezium Oracle Source Connector"
+    echo "  Register Debezium Oracle Source Connector"
     echo "======================================================================"
     echo ""
     
     register_connector "${CONNECTORS_DIR}/debezium-oracle-source-connector.json"
     
-    echo "----------------------------------------------------------------------"
-    echo -e "${YELLOW}Waiting 10 seconds for initial snapshot to complete...${NC}"
-    echo "----------------------------------------------------------------------"
-    sleep 10
-    echo ""
-    
     echo "======================================================================"
-    echo "  Step 2: Register PostgreSQL Sink Connector"
-    echo "======================================================================"
-    echo ""
-    
-    register_connector "${CONNECTORS_DIR}/debezium-postgres-sink-connector.json"
-    
-    echo "======================================================================"
-    echo "  Connector Status Summary"
+    echo "  Connector Status"
     echo "======================================================================"
     echo ""
     
     check_connector_status "debezium-oracle-source-connector"
-    check_connector_status "debezium-postgres-sink-connector"
     
     echo "======================================================================"
-    echo -e "${GREEN}✓ All connectors registered successfully!${NC}"
+    echo -e "${GREEN}✓ Debezium Oracle Source Connector registered successfully!${NC}"
     echo "======================================================================"
     echo ""
     echo "Next steps:"
     echo "  1. Check Kafka topics: docker exec -it service-template-atb-kafka kafka-topics --list --bootstrap-server localhost:9092"
-    echo "  2. Monitor connector logs: docker logs -f service-template-atb-kafka-connect"
-    echo "  3. View data in PostgreSQL: docker exec -it service-template-atb-postgres psql -U myuser -d mydatabase"
+    echo "  2. Setup ksqlDB streams: ./kafka-connect/setup-ksqldb-streams.sh"
+    echo "  3. Register enriched sink: ./kafka-connect/register-enriched-sink-connector.sh"
     echo ""
 }
 
